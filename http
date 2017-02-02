@@ -1,0 +1,12 @@
+server {
+    listen HTTP;
+    server_name FQDN DAV;
+
+    root   /usr/share/nginx/html;
+
+    location /.well-known/ {}  # do not redirect requests letsencrypt
+
+    location / {  # the default location redirects to https
+        return 301 https://$server_name$request_uri;
+    }
+}

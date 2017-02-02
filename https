@@ -1,0 +1,85 @@
+upstream php-handler {
+    server unix:/var/run/pool.sock;
+  }
+
+# Https Server On
+server {
+  charset utf-8;
+  listen HTTPS ssl http2;
+  server_name FQDN DAV;
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2; # Disable SSLv3
+  ssl_stapling on;    
+  ssl on;
+  ssl_certificate /etc/nginx/ssl/ssl.crt;
+  ssl_certificate_key /etc/nginx/ssl/ssl.key;
+  ssl_session_timeout 48h;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubdomains;";
+  add_header Content-Security-Policy-Report-Only "default-src https:; script-src https: 'unsafe-eval' 'unsafe-inline'; style-src https: 'unsafe-inline'; img-src https: data:; font-src https: data:; report-uri /csp-report";
+  ssl_prefer_server_ciphers on;
+  ssl_ciphers 'kEECDH+ECDSA+AES128 kEECDH+ECDSA+AES256 kEECDH+AES128 kEECDH+AES256 kEDH+AES128 kEDH+AES256 DES-CBC3-SHA +SHA !aNULL !eNULL !LOW !kECDH !DSS !MD5 !EXP !PSK !SRP !CAMELLIA !SEED';
+  ssl_dhparam  /etc/nginx/ssl/dhparams.pem;
+
+  root /code/;
+  client_max_body_size 32G;
+  fastcgi_buffers 1024 4K;
+
+  # Disable gzip to avoid the removal of the ETag header
+  gzip off;
+
+
+  rewrite ^/caldav(.*)$ /remote.php/caldav$1 redirect;
+  rewrite ^/carddav(.*)$ /remote.php/carddav$1 redirect;
+  rewrite ^/webdav(.*)$ /remote.php/webdav$1 redirect;
+
+  index index.php;
+  error_page 403 /403.html;
+  error_page 404 /404.html;
+
+  location = /robots.txt {
+    allow all;
+    log_not_found off;
+    access_log off;
+    }
+
+  location ~ ^/(?:\.htaccess|data|config|db_structure\.xml|.gitignore){
+    deny all;
+    }
+
+  location / {
+
+   rewrite  ^/(core\/(preview.png|js\/oc.js))$  /index.php/$1  last;
+   rewrite  ^/([^.]*)$  /index.php/$1  last;
+   # The following 2 rules are only needed with webfinger
+#   rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
+#   rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json last;
+
+   rewrite ^/.well-known/carddav /remote.php/carddav/ redirect;
+   rewrite ^/.well-known/caldav /remote.php/caldav/ redirect;
+
+   rewrite ^(/core/doc/[^\/]+/)$ $1/index.html;
+    }
+
+   location ~ \.php(?:$|/) {
+   fastcgi_split_path_info ^(.+\.php)(/.+)$;
+   include fastcgi_params;
+   fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+   fastcgi_param PATH_INFO $fastcgi_path_info;
+   fastcgi_param HTTPS on;
+   fastcgi_pass php-handler;
+   fastcgi_read_timeout 9000;
+         }
+
+   # Optional: set long EXPIRES header on static assets
+   location ~* \.(?:jpg|jpeg|gif|bmp|ico|png|svg|css|js)$ {
+       expires 30d;
+         access_log off;
+       }
+   # Services files
+    location ~ /\.  { return 404; }
+    location = /database.sql { deny all; return 404; }
+    location = /README.md { deny all; return 404; }
+    location = /skeleton { deny all; return 404; }
+    location = /direct {
+    try_files $uri $uri/ =404;
+    }
+}

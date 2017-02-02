@@ -1,0 +1,62 @@
+upstream php-handler {
+    server unix:/var/run/pool.sock;
+  }
+
+server {
+    listen HTTP;
+
+    root   /code;
+
+    client_max_body_size 32G;
+    fastcgi_buffers 1024 4K;
+    gzip off;
+    rewrite ^/caldav(.*)$ /remote.php/caldav$1 redirect;
+    rewrite ^/carddav(.*)$ /remote.php/carddav$1 redirect;
+    rewrite ^/webdav(.*)$ /remote.php/webdav$1 redirect;
+
+    index index.php;
+
+    location = /robots.txt {
+    allow all;
+    log_not_found off;
+    access_log off;
+    }
+
+    location ~ ^/(?:\.htaccess|data|config|db_structure\.xml|.gitignore){
+    deny all;
+    }
+
+    location / {
+
+    rewrite  ^/(core\/(preview.png|js\/oc.js))$  /index.php/$1  last;
+    rewrite  ^/([^.]*)$  /index.php/$1  last;
+    # The following 2 rules are only needed with webfinger
+    rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
+    rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json last;
+
+    rewrite ^/.well-known/carddav /remote.php/carddav/ redirect;
+    rewrite ^/.well-known/caldav /remote.php/caldav/ redirect;
+
+    rewrite ^(/core/doc/[^\/]+/)$ $1/index.html;
+    }
+
+    location ~ \.php(?:$|/) {
+    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param PATH_INFO $fastcgi_path_info;
+    fastcgi_param HTTPS on;
+    fastcgi_pass php-handler;
+    fastcgi_read_timeout 9000;
+         }
+
+    # Optional: set long EXPIRES header on static assets
+    location ~* \.(?:jpg|jpeg|gif|bmp|ico|png|svg|css|js)$ {
+       expires 30d;
+         access_log off;
+       }
+    # Services files
+    location ~ /\.  { return 404; }
+    location = /database.sql { deny all; return 404; }
+    location = /README.md { deny all; return 404; }
+}
