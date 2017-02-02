@@ -71,12 +71,13 @@ RUN apt-get install -y php7.0-fpm php7.0-common php7.0-cli php-apcu && \
 	apt-get install -y php-pear imagemagick php7.0-imagick php-imagick php7.0-imap php7.0-mcrypt && \
 	apt-get install -y php7.0-pspell php7.0-recode php-patchwork-utf8 php7.0-json libxml-rss-perl && \
 	apt-get install -y zlib1g php7.0-ldap php7.0-sqlite php7.0-tidy php7.0-xmlrpc php7.0-xsl && \
-	apt-get install -y php7.0-zip php-iconv php7.0-iconv&& \
+	apt-get install -y php7.0-zip php-iconv php7.0-iconv && \
 	echo "[program:php-fpm7.0]" >> /etc/supervisor/conf.d/supervisord.conf && \
 	echo "command = /usr/sbin/php-fpm7.0" >> /etc/supervisor/conf.d/supervisord.conf && \
 	echo "autostart = true" >> /etc/supervisor/conf.d/supervisord.conf && rm -rf /etc/php
 ADD php /etc/php
 # cron
+RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y cron && \
 	echo "[program:cron]" >> /etc/supervisor/conf.d/supervisord.conf && \
 	echo "command = /usr/sbin/cron -f" >> /etc/supervisor/conf.d/supervisord.conf && \
@@ -84,12 +85,12 @@ RUN apt-get install -y cron && \
 	echo "autorestart = true" >> /etc/supervisor/conf.d/supervisord.conf
 RUN echo "*/15  *  *  *  * php -f /code/cron.php" | crontab -u www-data -
 # mysql support
-RUN apt-get install -y mysql-client libmysqlclient-dev
+# RUN apt-get install -y  mysql-client libmysqlclient-dev
 # samba shares support
 RUN apt-get install -y smbclient
 # LibreOffice for preview
 RUN apt-get -y install --no-install-recommends libreoffice
-
+#
 ADD entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && chmod +x /le.sh && \
 	mkdir /etc/nginx/ssl
