@@ -1,4 +1,4 @@
-FROM kudato/docker-supervisor:latest
+FROM storagews/docker-supervisor:latest
 
 MAINTAINER Alexander Shevchenko <kudato@me.com>
 
